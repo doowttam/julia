@@ -63,28 +63,24 @@ reducedim_initarray0{T}(A::AbstractArray, region, v0::T) = reducedim_initarray0(
 #
 # The current scheme is basically following Steven G. Johnson's original implementation
 #
-function reducedim_init{T}(f, op::AddFun, A::AbstractArray{T}, region)
-    if method_exists(zero, (Type{T},))
-        x = evaluate(f, zero(T))
-        z = zero(x) + zero(x)
-        Tr = typeof(z) == typeof(x) && !isbits(T) ? T : typeof(z)
-    else
-        z = zero(sum(f, A))
-        Tr = typeof(z)
+for (op, init) in ((AddFun, zero), (MulFun, one))
+    @eval begin
+        function reducedim_init{T}(f, op::$op, A::AbstractArray{T}, region)
+            local v
+            try
+                v = $init(T)
+            catch e
+                isa(e, MethodError) || rethrow(e)
+                z2 = $init(mapreduce(f, op, A))
+                Tr2 = typeof(z2)
+                return reducedim_initarray(A, region, z2, Tr2)
+            end
+            x = evaluate(f, v)
+            z = evaluate(op, $init(x), $init(x))
+            Tr = typeof(z) == typeof(x) && !isbits(T) ? T : typeof(z)
+            return reducedim_initarray(A, region, z, Tr)
+        end
     end
-    return reducedim_initarray(A, region, z, Tr)
-end
-
-function reducedim_init{T}(f, op::MulFun, A::AbstractArray{T}, region)
-    if method_exists(zero, (Type{T},))
-        x = evaluate(f, zero(T))
-        z = one(x) * one(x)
-        Tr = typeof(z) == typeof(x) && !isbits(T) ? T : typeof(z)
-    else
-        z = one(prod(f, A))
-        Tr = typeof(z)
-    end
-    return reducedim_initarray(A, region, z, Tr)
 end
 
 reducedim_init{T}(f, op::MaxFun, A::AbstractArray{T}, region) = reducedim_initarray0(A, region, typemin(evaluate(f, zero(T))))
@@ -97,16 +93,25 @@ reducedim_init(f, op::OrFun, A::AbstractArray, region) = reducedim_initarray(A, 
 
 # specialize to make initialization more efficient for common cases
 
-typealias CommonReduceResult Union(Uint64,Uint128,Int64,Int128,Float32,Float64,Complex64,Complex128)
+typealias CommonReduceResult Union(Uint64,Uint128,Int64,Int128,Float32,Float64)
 
-for (IT, RT) in ((:CommonReduceResult, :T), (:SmallSigned, :Int), (:SmallUnsigned, :Uint))
+for (IT, RT) in ((CommonReduceResult, :(eltype(A))), (SmallSigned, :Int), (SmallUnsigned, :Uint))
+    T = Union([AbstractArray{t} for t in IT.types]...)
     @eval begin
-        reducedim_init{T<:$IT}(f::Union(IdFun,AbsFun,Abs2Fun), op::AddFun, A::AbstractArray{T}, region) = 
+        reducedim_init(f::Union(IdFun,AbsFun,Abs2Fun), op::AddFun, A::$T, region) = 
             reducedim_initarray(A, region, zero($RT))
-        reducedim_init{T<:$IT}(f::Union(IdFun,AbsFun,Abs2Fun), op::MulFun, A::AbstractArray{T}, region) = 
+        reducedim_init(f::Union(IdFun,AbsFun,Abs2Fun), op::MulFun, A::$T, region) = 
             reducedim_initarray(A, region, one($RT))
     end    
 end
+reducedim_init(f::Union(IdFun), op::AddFun, A::Union(AbstractArray{Complex64}, AbstractArray{Complex128}), region) = 
+    reducedim_initarray(A, region, zero(eltype(A)))
+reducedim_init(f::Union(IdFun), op::MulFun, A::Union(AbstractArray{Complex64}, AbstractArray{Complex128}), region) = 
+    reducedim_initarray(A, region, one(eltype(A)))
+reducedim_init(f::Union(AbsFun, Abs2Fun), op::AddFun, A::Union(AbstractArray{Complex64}, AbstractArray{Complex128}), region) = 
+    reducedim_initarray(A, region, zero(eltype(A).parameters[1]))
+reducedim_init(f::Union(AbsFun, Abs2Fun), op::MulFun, A::Union(AbstractArray{Complex64}, AbstractArray{Complex128}), region) = 
+    reducedim_initarray(A, region, one(eltype(A).parameters[1]))
 reducedim_init(f::Union(IdFun,AbsFun,Abs2Fun), op::AddFun, A::AbstractArray{Bool}, region) = 
     reducedim_initarray(A, region, 0)
 

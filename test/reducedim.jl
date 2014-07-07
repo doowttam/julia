@@ -49,6 +49,22 @@ R = reducedim((a,b) -> a+b, [1 2; 3 4], 2, 0.0)
 @test_approx_eq R [3,7]
 @test reducedim((a,b) -> a+b, [1 2; 3 4], 1, 0) == [4 6]
 
+# Small integers
+@test @inferred(sum(Int8[1], 1)) == [1]
+@test @inferred(sum(Uint8[1], 1)) == [1]
+
+# Complex types
+@test typeof(@inferred(sum([1.0+1.0im], 1))) == Vector{Complex128}
+@test typeof(@inferred(Base.sumabs([1.0+1.0im], 1))) == Vector{Float64}
+@test typeof(@inferred(Base.sumabs2([1.0+1.0im], 1))) == Vector{Float64}
+@test typeof(@inferred(prod([1.0+1.0im], 1))) == Vector{Complex128}
+@test typeof(@inferred(Base.prod(Base.AbsFun(), [1.0+1.0im], 1))) == Vector{Float64}
+@test typeof(@inferred(Base.prod(Base.Abs2Fun(), [1.0+1.0im], 1))) == Vector{Float64}
+
+# Heterogeneously typed arrays
+@test sum(Union(Float32, Float64)[1.0], 1) == [1.0]
+@test prod(Union(Float32, Float64)[1.0], 1) == [1.0]
+
 # inferred return types
 rt = Base.return_types(reducedim, (Function, Array{Float64, 3}, Int, Float64))
 @test length(rt) == 1 && rt[1] == Array{Float64, 3}
