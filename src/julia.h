@@ -1016,7 +1016,7 @@ typedef struct _jl_gcframe_t {
 // jl_value_t *x=NULL, *y=NULL; JL_GC_PUSH(&x, &y);
 // x = f(); y = g(); foo(x, y)
 
-extern DLLEXPORT jl_gcframe_t *jl_pgcstack;
+extern __thread DLLEXPORT jl_gcframe_t *jl_pgcstack;
 
 #define JL_GC_PUSH(...)                                                   \
   void *__gc_stkf[] = {(void*)((VA_NARG(__VA_ARGS__)<<1)|1), jl_pgcstack, \

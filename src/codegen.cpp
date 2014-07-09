@@ -409,7 +409,8 @@ void jl_dump_objfile(char* fname, int jit_model)
 #else
         jit_model ? Reloc::PIC_ : Reloc::Default,
 #endif
-        jit_model ? CodeModel::JITDefault : CodeModel::Default,
+        // jit_model ? CodeModel::JITDefault : CodeModel::Default,
+        CodeModel::Default,
         CodeGenOpt::Aggressive // -O3
         ));
 
@@ -3968,7 +3969,8 @@ static void init_julia_llvm_env(Module *m)
     jlpgcstack_var =
         new GlobalVariable(*m, jl_ppvalue_llvmt,
                            false, GlobalVariable::ExternalLinkage,
-                           NULL, "jl_pgcstack");
+                           NULL, "jl_pgcstack", NULL,
+                           llvm::GlobalVariable::GeneralDynamicTLSModel);
     add_named_global(jlpgcstack_var, (void*)&jl_pgcstack);
 #endif
 
@@ -4444,6 +4446,8 @@ extern "C" void jl_init_codegen(void)
         .setTargetOptions(options)
         .setMCPU(strcmp(jl_cpu_string,"native") ? jl_cpu_string : "")
 #ifdef USE_MCJIT
+        .setCodeModel(CodeModel::Default)
+        .setRelocationModel(Reloc::PIC_)
         .setUseMCJIT(true)
         .setMAttrs(attrvec);
 #else
