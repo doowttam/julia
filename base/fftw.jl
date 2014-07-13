@@ -202,10 +202,10 @@ set_timelimit(precision::fftwTypeSingle,seconds) =
 #   alignment of a given pointer modulo whatever FFTW needs.
 
 alignment_of{T<:fftwDouble}(A::StridedArray{T}) = 
-   ccall((:fftw_alignment_of, libfftw), Int32, (Ptr{T},), A)
+   ccall((:fftw_alignment_of, libfftw), Int32, (Ptr{Void},), A)
 
 alignment_of{T<:fftwSingle}(A::StridedArray{T}) = 
-   ccall((:fftwf_alignment_of, libfftwf), Int32, (Ptr{T},), A)
+   ccall((:fftwf_alignment_of, libfftwf), Int32, (Ptr{Void},), A)
 
 # Plan (low-level)
 
